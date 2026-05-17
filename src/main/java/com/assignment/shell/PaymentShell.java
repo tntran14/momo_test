@@ -33,13 +33,39 @@ public final class PaymentShell {
                 continue;
             }
 
+            // Support both formats:
+            //  - "CASH_IN 1000000" (space separated)
+            //  - "CASH_IN1000000"  (command + param glued)
             String[] parts = line.split("\\s+");
-            String command = parts[0].toUpperCase();
+            String raw = parts[0].toUpperCase();
+            String command;
+            String[] args;
+
+            String trimmedUpper = line.toUpperCase().replaceAll("\\s+", "");
+            // Try to parse command-without-spaces first (longest match by known command prefixes)
+            if (trimmedUpper.startsWith("CASH_IN")) {
+                command = "CASH_IN";
+                args = new String[] { line.substring(command.length()) };
+            } else if (trimmedUpper.startsWith("PAY")) {
+                command = "PAY";
+                args = new String[] { line.substring(command.length()) };
+            } else if (trimmedUpper.startsWith("SCHEDULE")) {
+                command = "SCHEDULE";
+                // format: SCHEDULE<billId><space?>/<date> -> we will parse later
+                args = new String[] { line.substring(command.length()) };
+            } else {
+                command = raw;
+                args = new String[parts.length - 1];
+                for (int i = 1; i < parts.length; i++) {
+                    args[i - 1] = parts[i];
+                }
+            }
 
             try {
                 if ("CASH_IN".equals(command)) {
-                    handleCashIn(parts);
+                    handleCashIn(args);
                 } else if ("CREATE_BILL".equals(command)) {
+                    // CREATE_BILL expects space-separated tokens
                     handleCreateBill(parts);
                 } else if ("DELETE_BILL".equals(command)) {
                     handleDeleteBill(parts);
@@ -52,9 +78,9 @@ public final class PaymentShell {
                 } else if ("DUE_DATE".equals(command)) {
                     paymentService.listBillsDueDateToConsole(parts[1]);
                 } else if ("PAY".equals(command)) {
-                    handlePay(parts);
+                    handlePay(args);
                 } else if ("SCHEDULE".equals(command)) {
-                    handleSchedule(parts);
+                    handleSchedule(args);
                 } else if ("LIST_PAYMENT".equals(command)) {
                     paymentService.listPaymentsToConsole();
                 } else if ("SEARCH_BILL_BY_PROVIDER".equals(command)) {
@@ -74,7 +100,9 @@ public final class PaymentShell {
     }
 
     private void handleCashIn(String[] parts) {
-        long amount = Long.parseLong(parts[1]);
+        // parts = [amount] (for glued format) or [amount] (space format also works if you pass it that way)
+        if (parts.length < 1) throw new IllegalArgumentException("CASH_IN requires amount");
+        long amount = Long.parseLong(parts[0].trim());
         paymentService.cashIn(amount);
         System.out.println("Your available balance:" + paymentService.getAvailableBalance());
     }
