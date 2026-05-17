@@ -109,7 +109,7 @@ public final class PaymentService {
         availableBalance -= bill.getAmount();
         billRepository.markPaid(billId);
 
-        paymentRepository.addPayment(billId, bill.getAmount(), LocalDate.now(), BillState.PAID.name());
+        paymentRepository.addPayment(billId, bill.getAmount(), LocalDate.now(), "PROCESSED");
         System.out.println("PaymenthasbeencompletedforBillwithid" + billId + ".");
         System.out.println("Yourcurrentbalanceis:" + availableBalance);
 
